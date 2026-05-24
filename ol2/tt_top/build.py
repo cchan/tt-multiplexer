@@ -291,10 +291,10 @@ if __name__ == '__main__':
 	flow_cfg.update({
 		"PAD_SITE_NAME": "GF_IO_Site",
 		"PAD_CORNER_SITE_NAME": "GF_COR_Site",
-		"PAD_FAKE_SITES": {
-			"GF_IO_Site": (0.1, 350),
-			"GF_COR_Site": (355, 355),
-		},
+		"PAD_FAKE_SITE_WIDTH": 0.1,
+		"PAD_FAKE_SITE_HEIGHT": 350,
+		"PAD_FAKE_CORNER_SITE_WIDTH": 355,
+		"PAD_FAKE_CORNER_SITE_HEIGHT": 355,
 		"PAD_CORNER": ["gf180mcu_ocd_io__cor"],
 		"PAD_FILLERS": [
 			"gf180mcu_ocd_io__fill10",
