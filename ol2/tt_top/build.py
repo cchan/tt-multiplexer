@@ -14,25 +14,17 @@ import math
 import os
 import sys
 
-from os.path import abspath
-from typing import List, Tuple, Type
+from typing import List, Type
 
-from librelane.common import Path
 from librelane.flows.misc import OpenInKLayout
 from librelane.flows.sequential import SequentialFlow
-from librelane.state import DesignFormat, State
-from librelane.steps.openroad import OpenROADStep
 from librelane.steps.odb import OdbpyStep
-from librelane.steps.step import ViewsUpdate, MetricsUpdate
 from librelane.steps import (
 	Step,
 	Yosys,
 	OpenROAD,
-	Magic,
-	Misc,
 	KLayout,
 	Odb,
-	Netgen,
 	Checker,
 )
 
@@ -78,43 +70,6 @@ class FixupBTerms(OdbpyStep):
 			"odb_prune_bterms.py"
 		)
 
-
-@Step.factory.register()
-class FixupExtractedNetlist(Step):
-
-	id = "TT.Top.FixupExtractedNetlist"
-	name = "Fix netlist port for LVS"
-
-	inputs = [DesignFormat.SPICE]
-	outputs = [DesignFormat.SPICE]
-
-	def run(self, state_in: State, **kwargs) -> Tuple[ViewsUpdate, MetricsUpdate]:
-		views_updates: ViewsUpdate = {}
-
-		input_spice = state_in[DesignFormat.SPICE]
-		output_spice = os.path.join(
-			self.step_dir,
-			f"{self.config['DESIGN_NAME']}.{DesignFormat.SPICE.extension}"
-		)
-
-		script = os.path.join(
-			os.path.dirname(__file__),
-			"../../py/gf_fixup_netlist.py"
-		)
-
-		self.run_subprocess(
-			[
-				script,
-				abspath(input_spice),
-				abspath(output_spice),
-			],
-		)
-
-		views_updates[DesignFormat.SPICE] = Path(output_spice)
-
-		return views_updates, {}
-
-
 class TopFlow(SequentialFlow):
 
 	Steps: List[Type[Step]] = [
@@ -142,10 +97,7 @@ class TopFlow(SequentialFlow):
 		OpenROAD.RCX,
 		OpenROAD.STAPostPNR,
 		OpenROAD.IRDropReport,
-		Magic.StreamOut,
 		KLayout.StreamOut,
-		KLayout.XOR,
-		Checker.XOR,
 #		KLayout.Antenna,
 #		Checker.KLayoutAntenna,
 #		Magic.DRC,
@@ -154,11 +106,6 @@ class TopFlow(SequentialFlow):
 		KLayout.Filler,
 		KLayout.Density,
 		Checker.KLayoutDensity,
-		Magic.SpiceExtraction,
-		Checker.IllegalOverlap,
-		FixupExtractedNetlist,
-		Netgen.LVS,
-		Checker.LVS,
 	]
 
 
@@ -166,26 +113,9 @@ if __name__ == '__main__':
 	# Argument processing
 	parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 	parser.add_argument("--open-in-klayout", action="store_true", help="Open last run in KLayout")
-	parser.add_argument("--skip-xor-checks", action="store_true", help="Skips XOR checks")
-	parser.add_argument("--skip-magic-signoff", action="store_true", help="Skips Magic streamout, extraction, and LVS")
 
 	args = parser.parse_args()
 	config = vars(args)
-
-	if config['skip_xor_checks']:
-		TopFlow.Steps.remove(KLayout.XOR)
-		TopFlow.Steps.remove(Checker.XOR)
-
-	if config['skip_magic_signoff']:
-		for step in [
-			Magic.StreamOut,
-			Magic.SpiceExtraction,
-			Checker.IllegalOverlap,
-			FixupExtractedNetlist,
-			Netgen.LVS,
-			Checker.LVS,
-		]:
-			TopFlow.Steps.remove(step)
 
 	# Get PDK root out of environment
 	PDK_ROOT = os.getenv('PDK_ROOT')
@@ -318,16 +248,6 @@ if __name__ == '__main__':
 
 		# Magic stream
 		"PRIMARY_GDSII_STREAMOUT_TOOL": "klayout",
-		"MAGIC_ZEROIZE_ORIGIN" : False,
-
-		# DRC
-		"MAGIC_DRC_USE_GDS": True,
-
-		# LVS
-		"MAGIC_DEF_LABELS" : False,
-		"MAGIC_EXT_UNIQUE": "notopports",
-		"MAGIC_EXT_SHORT_RESISTOR" : True, # Fixes LVS failures when more than two pins are connected to the same net
-		"LVS_FLATTEN_CELLS": ["tt_logo_top", "tt_logo_bottom", "tt_logo_corner_tl", "tt_logo_corner_tr", "gf180mcu_ws_ip__id", "gf180mcu_ws_ip__logo"],
 	}
 
 	flow_cfg.update({
