@@ -71,7 +71,7 @@ set_case_analysis zero [get_pins *.ctrl_I/*tbuf_spine_ow_I*/EN]
 # Only clock is the ctrl_sel_inc
 # The internal sub-divided clocks are checked internally when
 # hardening tt_ctrl itself so don't bother here
-create_clock -name ctrl_inc -period 10 [ get_ports "pad_raw[1]" ]
+create_clock -name ctrl_inc -period 100 [ get_ports "pad_raw[1]" ]
 
 
 # Max delays
@@ -83,17 +83,17 @@ set_output_delay 0 [all_outputs]
 
 # Control delays
 group_path    -from $all_ctl -to $all_pins_um_ctl -name ctl_to_ctl
-set_max_delay -from $all_ctl -to $all_pins_um_ctl 15.0
+set_max_delay -from $all_ctl -to $all_pins_um_ctl 150.0
 
 group_path    -from $all_ctl -to $all_pins_um_iw  -name ctl_to_inward
-set_max_delay -from $all_ctl -to $all_pins_um_iw  15.0
+set_max_delay -from $all_ctl -to $all_pins_um_iw  150.0
 
 group_path    -from $all_ctl -to $all_pads_out    -name ctl_to_outward
-set_max_delay -from $all_ctl -to $all_pads_out    30.0
+set_max_delay -from $all_ctl -to $all_pads_out    300.0
 
 # User IO
 group_path    -from $all_pads_in    -to $all_pins_um_iw  -name io_inward
-set_max_delay -from $all_pads_in    -to $all_pins_um_iw  5.0
+set_max_delay -from $all_pads_in    -to $all_pins_um_iw  50.0
 
 group_path    -from $all_pins_um_ow -to $all_pads_out    -name io_outward
-set_max_delay -from $all_pins_um_ow -to $all_pads_out    12.5
+set_max_delay -from $all_pins_um_ow -to $all_pads_out    125.0

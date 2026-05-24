@@ -167,6 +167,7 @@ if __name__ == '__main__':
 	parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 	parser.add_argument("--open-in-klayout", action="store_true", help="Open last run in KLayout")
 	parser.add_argument("--skip-xor-checks", action="store_true", help="Skips XOR checks")
+	parser.add_argument("--skip-magic-signoff", action="store_true", help="Skips Magic streamout, extraction, and LVS")
 
 	args = parser.parse_args()
 	config = vars(args)
@@ -174,6 +175,17 @@ if __name__ == '__main__':
 	if config['skip_xor_checks']:
 		TopFlow.Steps.remove(KLayout.XOR)
 		TopFlow.Steps.remove(Checker.XOR)
+
+	if config['skip_magic_signoff']:
+		for step in [
+			Magic.StreamOut,
+			Magic.SpiceExtraction,
+			Checker.IllegalOverlap,
+			FixupExtractedNetlist,
+			Netgen.LVS,
+			Checker.LVS,
+		]:
+			TopFlow.Steps.remove(step)
 
 	# Get PDK root out of environment
 	PDK_ROOT = os.getenv('PDK_ROOT')
@@ -264,6 +276,7 @@ if __name__ == '__main__':
 		],
 
 		# Constraints
+		"CLOCK_PERIOD" : 100,
 		"SIGNOFF_SDC_FILE" : "dir::signoff.sdc",
 
 		# Synthesis
@@ -304,6 +317,7 @@ if __name__ == '__main__':
 		"RT_MAX_LAYER"          : "Metal4",
 
 		# Magic stream
+		"PRIMARY_GDSII_STREAMOUT_TOOL": "klayout",
 		"MAGIC_ZEROIZE_ORIGIN" : False,
 
 		# DRC
@@ -352,6 +366,22 @@ if __name__ == '__main__':
 		"KLAYOUT_FILLER_OPTIONS": {
 			"Metal2_ignore_active": True,
 		},
+	})
+
+	flow_cfg.update({
+		"PAD_SITE_NAME": "GF_IO_Site",
+		"PAD_CORNER_SITE_NAME": "GF_COR_Site",
+		"PAD_FAKE_SITES": {
+			"GF_IO_Site": (0.1, 350),
+			"GF_COR_Site": (355, 355),
+		},
+		"PAD_CORNER": ["gf180mcu_ocd_io__cor"],
+		"PAD_FILLERS": [
+			"gf180mcu_ocd_io__fill10",
+			"gf180mcu_ocd_io__fill5",
+			"gf180mcu_ocd_io__fill1",
+			"gf180mcu_ocd_io__fillnc",
+		],
 	})
 
 	# Pad config
