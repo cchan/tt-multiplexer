@@ -1106,11 +1106,17 @@ class ModulePowerStrapper:
 				# Power gate instance
 				pg_inst = pg_it.getInst()
 
-				# Pick appropriate Y positions for straps
-				ypw = self._get_y_pos_width(pg_inst, pg_idx, pg_cnt)
-
 				# Get the X data (extent + via pos)
 				xl, xr, pg_intervals, um_intervals, um_m5_y = self._get_x_data(um_it, pg_it)
+
+				# Pick appropriate Y positions for straps
+				ypw = [
+					((a + b)//2, max(self.um_stripe_width, b - a))
+					for a, b in um_m5_y
+					if b - a <= 10000
+				]
+				if not ypw:
+					ypw = self._get_y_pos_width(pg_inst, pg_idx, pg_cnt)
 
 				# Find net and create the matching special wire
 				net = um_it.getNet()
