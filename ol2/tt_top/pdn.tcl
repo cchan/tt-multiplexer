@@ -55,7 +55,9 @@ add_pdn_stripe \
 
 add_pdn_connect \
     -grid stdcell_grid \
-    -layers "$::env(FP_PDN_VERTICAL_LAYER) $::env(FP_PDN_HORIZONTAL_LAYER)"
+    -layers "$::env(FP_PDN_VERTICAL_LAYER) $::env(FP_PDN_HORIZONTAL_LAYER)" \
+    -max_rows 3 \
+    -max_columns 3
 
 # Add the core ring
 add_pdn_ring \
@@ -75,4 +77,6 @@ define_pdn_grid \
 
 add_pdn_connect \
     -grid macro \
-    -layers "$::env(FP_PDN_VERTICAL_LAYER) $::env(FP_PDN_HORIZONTAL_LAYER)"
+    -layers "$::env(FP_PDN_VERTICAL_LAYER) $::env(FP_PDN_HORIZONTAL_LAYER)" \
+    -max_rows 3 \
+    -max_columns 3

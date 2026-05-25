@@ -838,6 +838,9 @@ class ViaGenerator:
 		return self.get(ncols, nrows)
 
 	def get4sz_ext(self, vw, vh, bot_fit='xy', top_fit='xy'):
+		return self.get4sz_ext_limited(vw, vh, bot_fit, top_fit)
+
+	def get4sz_ext_limited(self, vw, vh, bot_fit='xy', top_fit='xy', max_cols=None, max_rows=None):
 		# Constraints
 		ncols = []
 		nrows = []
@@ -856,6 +859,14 @@ class ViaGenerator:
 
 		ncols = min(ncols)
 		nrows = min(nrows)
+
+		if max_cols is not None:
+			ncols = min(ncols, max_cols)
+		if max_rows is not None:
+			nrows = min(nrows, max_rows)
+
+		ncols = max(ncols, 1)
+		nrows = max(nrows, 1)
 
 		# Get final via
 		return self.get(ncols, nrows)
@@ -975,9 +986,20 @@ class ModulePowerStrapper:
 		xl = min([x.xMin() for x in geom])
 		xr = max([x.xMax() for x in geom])
 
+		# Merge close pin spans before placing vias.  Adjacent generated via
+		# arrays can otherwise overlap after streamout.
+		intervals = sorted((x.xMin(), x.xMax()) for x in geom)
+		merged = []
+		min_gap = 2000
+		for a, b in intervals:
+			if (not merged) or (a - merged[-1][1] > min_gap):
+				merged.append([a, b])
+			else:
+				merged[-1][1] = max(merged[-1][1], b)
+
 		# Center positions and width
-		xp = [(x.xMin() + x.xMax()) // 2 for x in geom]
-		xw = [(x.xMax() - x.xMin())      for x in geom]
+		xp = [(a + b) // 2 for a, b in merged]
+		xw = [(b - a)      for a, b in merged]
 
 		# Return result
 		return xl, xr, xp, xw
@@ -993,7 +1015,7 @@ class ModulePowerStrapper:
 			vh = yw
 
 			# Get matching via
-			via = self.vg.get4sz_ext(vw, vh, top_fit='y', bot_fit='x')
+			via = self.vg.get4sz_ext_limited(vw, vh, top_fit='y', bot_fit='x', max_cols=3, max_rows=3)
 
 			# Add it
 			odb.createSBoxes(sw, via, [odb.Point(x, yp)], "STRIPE")
