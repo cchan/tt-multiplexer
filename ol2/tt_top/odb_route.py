@@ -887,6 +887,7 @@ class ModulePowerStrapper:
 		self.layer = tech.findLayer('Metal5')
 
 		self.stripe_space, self.stripe_width = self._find_stripe_space_width()
+		self.um_stripe_width = 1600
 		self.space = 1100
 
 	def _find_stripe_space_width(self):
@@ -919,8 +920,7 @@ class ModulePowerStrapper:
 
 		# If we only have one power gate, allocate all to it
 		if pg_cnt == 1:
-			# Wide strip
-			w = 2 * self.stripe_width + self.space
+			w = self.um_stripe_width
 
 			# Select depending on height
 			if h == 1:
@@ -951,9 +951,8 @@ class ModulePowerStrapper:
 
 		# If we have two, then the center one is split
 		elif pg_cnt == 2:
-			# Wide and narrow stripes + offset
-			ww = 2 * self.stripe_width + self.space
-			wn = self.stripe_width
+			ww = self.um_stripe_width
+			wn = self.um_stripe_width
 
 			ofs1 = (1 - 2*pg_idx) * ((self.stripe_width + self.space) // 2)
 			ofs2 = (2*pg_idx - 1) * self.stripe_space
@@ -978,40 +977,55 @@ class ModulePowerStrapper:
 
 	def _get_x_data(self, um_it, pg_it):
 		# Find geometry for those terminals
-		geom_um = [ x[1] for x in pg_it.getGeometries() ]
-		geom_pg = [ x[1] for x in um_it.getGeometries() ]
-		geom = geom_um + geom_pg
+		geom_um = um_it.getGeometries()
+		geom_pg = pg_it.getGeometries()
+		rect_um = [ x[1] for x in geom_um ]
+		rect_pg = [ x[1] for x in geom_pg ]
+		geom = rect_um + rect_pg
 
 		# Extent
 		xl = min([x.xMin() for x in geom])
 		xr = max([x.xMax() for x in geom])
 
-		# Merge close pin spans before placing vias.  Adjacent generated via
-		# arrays can otherwise overlap after streamout.
-		intervals = sorted((x.xMin(), x.xMax()) for x in geom)
+		pg_intervals = [ (x.xMin(), x.xMax()) for x in rect_pg ]
+		um_intervals = [
+			(rect.xMin(), rect.xMax())
+			for layer, rect in geom_um
+			if layer.getName() == self.vg.bot_ly.getName()
+		]
+		um_m5_y = [
+			(rect.yMin(), rect.yMax())
+			for layer, rect in geom_um
+			if layer.getName() == self.layer.getName()
+		]
+
+		return xl, xr, pg_intervals, um_intervals, um_m5_y
+
+	def _merge_intervals(self, intervals):
 		merged = []
 		min_gap = 2000
-		for a, b in intervals:
+		for a, b in sorted(intervals):
 			if (not merged) or (a - merged[-1][1] > min_gap):
 				merged.append([a, b])
 			else:
 				merged[-1][1] = max(merged[-1][1], b)
 
-		# Center positions and width
-		xp = [(a + b) // 2 for a, b in merged]
-		xw = [(b - a)      for a, b in merged]
+		return merged
 
-		# Return result
-		return xl, xr, xp, xw
-
-	def _draw_stripe(self, sw, yp, yw, xl, xr, xp, xw):
+	def _draw_stripe(self, sw, yp, yw, xl, xr, pg_intervals, um_intervals, um_m5_y):
 		# Stripe
 		odb.createSBoxes(sw, self.layer, [odb.Rect(xl, yp-yw//2, xr, yp+yw//2)], "STRIPE")
 
+		intervals = list(pg_intervals)
+		overlaps_um_m5 = any((yp - yw//2) < b and (yp + yw//2) > a for a, b in um_m5_y)
+		if not overlaps_um_m5:
+			intervals += um_intervals
+
 		# Dual vias
-		for x, w in zip(xp, xw):
+		for a, b in self._merge_intervals(intervals):
 			# Area of via
-			vw = w
+			x = (a + b) // 2
+			vw = b - a
 			vh = yw
 
 			# Get matching via
@@ -1056,7 +1070,7 @@ class ModulePowerStrapper:
 				ypw = self._get_y_pos_width(pg_inst, pg_idx, pg_cnt)
 
 				# Get the X data (extent + via pos)
-				xl, xr, xp, xw = self._get_x_data(um_it, pg_it)
+				xl, xr, pg_intervals, um_intervals, um_m5_y = self._get_x_data(um_it, pg_it)
 
 				# Find net and create the matching special wire
 				net = um_it.getNet()
@@ -1064,7 +1078,7 @@ class ModulePowerStrapper:
 
 				# Draw for each y position
 				for yp, yw in ypw:
-					self._draw_stripe(sw, yp, yw, xl, xr, xp, xw)
+					self._draw_stripe(sw, yp, yw, xl, xr, pg_intervals, um_intervals, um_m5_y)
 
 
 class RingPowerStrapper:
