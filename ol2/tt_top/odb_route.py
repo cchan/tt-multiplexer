@@ -887,7 +887,8 @@ class ModulePowerStrapper:
 		self.layer = tech.findLayer('Metal5')
 
 		self.stripe_space, self.stripe_width = self._find_stripe_space_width()
-		self.um_stripe_width = 1600
+		self.um_stripe_width = 880
+		self.um_stripe_x_margin = 100
 		self.space = 1100
 
 	def _find_stripe_space_width(self):
@@ -1014,6 +1015,8 @@ class ModulePowerStrapper:
 
 	def _draw_stripe(self, sw, yp, yw, xl, xr, pg_intervals, um_intervals, um_m5_y):
 		# Stripe
+		xl -= self.um_stripe_x_margin
+		xr += self.um_stripe_x_margin
 		odb.createSBoxes(sw, self.layer, [odb.Rect(xl, yp-yw//2, xr, yp+yw//2)], "STRIPE")
 
 		intervals = list(pg_intervals)
