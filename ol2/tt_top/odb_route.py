@@ -889,6 +889,7 @@ class ModulePowerStrapper:
 		self.stripe_space, self.stripe_width = self._find_stripe_space_width()
 		self.um_stripe_width = 880
 		self.um_stripe_x_margin = 100
+		self.mt_min_space = 920
 		self.space = 1100
 
 	def _find_stripe_space_width(self):
@@ -1013,7 +1014,43 @@ class ModulePowerStrapper:
 
 		return merged
 
+	def _snap_stripe_y(self, yp, yw, um_m5_y):
+		yl = yp - yw//2
+		yh = yp + yw//2
+		candidate = None
+
+		for a, b in um_m5_y:
+			if b - a > self.mt_min_space:
+				continue
+
+			overlap = max(0, min(yh, b) - max(yl, a))
+			if overlap:
+				score = (1, overlap)
+			elif yh <= a:
+				gap = a - yh
+				if gap >= self.mt_min_space:
+					continue
+				score = (0, -gap)
+			elif b <= yl:
+				gap = yl - b
+				if gap >= self.mt_min_space:
+					continue
+				score = (0, -gap)
+			else:
+				continue
+
+			if candidate is None or score > candidate[0]:
+				candidate = (score, a, b)
+
+		if candidate is None:
+			return yp, yw
+
+		_, a, b = candidate
+		return (a + b)//2, yw
+
 	def _draw_stripe(self, sw, yp, yw, xl, xr, pg_intervals, um_intervals, um_m5_y):
+		yp, yw = self._snap_stripe_y(yp, yw, um_m5_y)
+
 		# Stripe
 		xl -= self.um_stripe_x_margin
 		xr += self.um_stripe_x_margin
